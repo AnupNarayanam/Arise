@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Arise — Lineage Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0b0b0d;
+    --panel: #151517;
+    --border: #2a2a2e;
+    --red: #c8102e;
+    --text: #eaeaea;
+    --muted: #8a8a8f;
+    --green: #4caf50;
+    --amber: #d9822b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    margin: 0;
+    padding: 24px;
+  }
+  h1 { color: var(--red); letter-spacing: 2px; font-size: 22px; margin-bottom: 4px; }
+  .subtitle { color: var(--muted); font-size: 13px; margin-bottom: 24px; }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  @media (max-width: 800px) { .two-col { grid-template-columns: 1fr; } }
+  .stat {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--red);
+    padding: 14px 16px;
+  }
+  .stat .label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
+  .stat .value { font-size: 24px; margin-top: 4px; }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    padding: 16px;
+    margin-bottom: 20px;
+  }
+  .panel h2 { font-size: 14px; color: var(--red); text-transform: uppercase; letter-spacing: 1px; margin-top: 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+  th { color: var(--muted); text-transform: uppercase; font-size: 10px; letter-spacing: 1px; }
+  .status-alive { color: var(--green); }
+  .status-dead { color: var(--red); }
+  .status-rejected { color: var(--amber); }
+  .status-pending_approval { color: var(--amber); }
+  .status-executed { color: var(--green); }
+  .empty { color: var(--muted); padding: 20px; text-align: center; font-size: 13px; }
+  .controls { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+  .controls input, .controls select {
+    background: var(--bg); color: var(--text); border: 1px solid var(--border);
+    padding: 6px 10px; font-family: inherit; font-size: 12px;
+  }
+  .controls input { flex: 1; min-width: 160px; }
+  .tree-node { margin-left: 20px; border-left: 1px solid var(--border); padding-left: 12px; margin-top: 6px; }
+  .tree-root { font-size: 12px; }
+  .tree-label {
+    display: inline-block; padding: 3px 8px; border: 1px solid var(--border);
+    border-left: 3px solid var(--green);
+  }
+  .tree-label.dead { border-left-color: var(--red); }
+  #balanceChart, #categoryChart { max-height: 280px; }
+</style>
+</head>
+<body>
+
+<h1>ARISE // LINEAGE DASHBOARD</h1>
+<div class="subtitle">Autonomous survival agent — read-only view, generated from arise_data.json</div>
+
+<div class="grid" id="stats"></div>
+
+<div class="two-col">
+  <div class="panel">
+    <h2>Balance Over Time</h2>
+    <canvas id="balanceChart"></canvas>
+  </div>
+  <div class="panel">
+    <h2>Income / Expense by Category</h2>
+    <canvas id="categoryChart"></canvas>
+  </div>
+</div>
+
+<div class="panel">
+  <h2>Lineage Tree</h2>
+  <div id="lineageTree" class="tree-root"></div>
+</div>
+
+<div class="panel">
+  <h2>Decision Log — Reasoning Trace</h2>
+  <div class="controls">
+    <input id="searchBox" placeholder="Search reasoning text...">
+    <select id="statusFilter">
+      <option value="">All statuses</option>
+      <option value="executed">Executed</option>
+      <option value="rejected">Rejected</option>
+      <option value="pending_approval">Pending approval</option>
+    </select>
+  </div>
+  <table id="decisionTable">
+    <thead><tr><th>Time</th><th>Agent</th><th>Action</th><th>Amount</th><th>Status</th><th>Reasoning</th></tr></thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<script>
+let ALL_DECISIONS = [];
+
+async function load() {
+  let data;
+  try {
+    const res = await fetch('arise_data.json');
+    data = await res.json();
+  } catch (e) {
+    document.body.innerHTML = '<div class="empty">Could not load arise_data.json — run `python -m arise.export` first, and open this file from the same folder.</div>';
+    return;
+  }
+
+  renderStats(data);
+  renderBalanceChart(data);
+  renderCategoryChart(data);
+  renderLineageTree(data);
+  ALL_DECISIONS = data.decisions;
+  renderDecisions(ALL_DECISIONS);
+
+  document.getElementById('searchBox').addEventListener('input', () => filterDecisions());
+  document.getElementById('statusFilter').addEventListener('change', () => filterDecisions());
+}
+
+function renderStats(data) {
+  const s = data.summary;
+  const items = [
+    ['Agents (ever)', s.total_agents_ever],
+    ['Alive', s.alive],
+    ['Dead', s.dead],
+    ['Total Balance', '$' + s.total_balance.toFixed(2)],
+    ['Oldest Lineage', s.oldest_lineage_days.toFixed(1) + ' days'],
+  ];
+  document.getElementById('stats').innerHTML = items.map(([label, value]) =>
+    `<div class="stat"><div class="label">${label}</div><div class="value">${value}</div></div>`
+  ).join('');
+}
+
+function renderBalanceChart(data) {
+  const colors = ['#c8102e', '#4caf50', '#3b82f6', '#d9822b', '#9c27b0', '#00bcd4'];
+  const datasets = Object.entries(data.balances_over_time).map(([agentId, points], i) => ({
+    label: agentId.slice(0, 8),
+    data: points.map(p => ({ x: p.ts * 1000, y: p.balance })),
+    borderColor: colors[i % colors.length],
+    backgroundColor: 'transparent',
+    tension: 0.1,
+    pointRadius: 2,
+  }));
+  if (!datasets.length) return;
+  new Chart(document.getElementById('balanceChart'), {
+    type: 'line',
+    data: { datasets },
+    options: {
+      scales: {
+        x: { type: 'time', time: { unit: 'hour' }, ticks: { color: '#8a8a8f' }, grid: { color: '#2a2a2e' } },
+        y: { ticks: { color: '#8a8a8f' }, grid: { color: '#2a2a2e' } },
+      },
+      plugins: { legend: { labels: { color: '#eaeaea' } } },
+    },
+  });
+}
+
+function renderCategoryChart(data) {
+  const cats = Object.keys(data.category_totals);
+  if (!cats.length) return;
+  new Chart(document.getElementById('categoryChart'), {
+    type: 'bar',
+    data: {
+      labels: cats,
+      datasets: [
+        { label: 'Income', data: cats.map(c => data.category_totals[c].income || 0), backgroundColor: '#4caf50' },
+        { label: 'Expense', data: cats.map(c => data.category_totals[c].expense || 0), backgroundColor: '#c8102e' },
+      ],
+    },
+    options: {
+      scales: {
+        x: { ticks: { color: '#8a8a8f' }, grid: { color: '#2a2a2e' } },
+        y: { ticks: { color: '#8a8a8f' }, grid: { color: '#2a2a2e' } },
+      },
+      plugins: { legend: { labels: { color: '#eaeaea' } } },
+    },
+  });
+}
+
+function renderLineageTree(data) {
+  const byParent = {};
+  data.agents.forEach(a => {
+    const key = a.parent_id || '__root__';
+    (byParent[key] = byParent[key] || []).push(a);
+  });
+  const balanceByAgent = {};
+  for (const [aid, pts] of Object.entries(data.balances_over_time)) {
+    balanceByAgent[aid] = pts.length ? pts[pts.length - 1].balance : 0;
+  }
+  const days = data.days_survived || {};
+
+  function renderNode(agent) {
+    const bal = (balanceByAgent[agent.agent_id] ?? 0).toFixed(2);
+    const d = (days[agent.agent_id] ?? 0).toFixed(1);
+    const children = byParent[agent.agent_id] || [];
+    const label = `<span class="tree-label ${agent.status}">${agent.agent_id.slice(0,8)} — $${bal} — ${d}d — ${agent.status}</span>`;
+    const childHtml = children.map(c => `<div class="tree-node">${renderNode(c)}</div>`).join('');
+    return label + childHtml;
+  }
+
+  const roots = byParent['__root__'] || [];
+  document.getElementById('lineageTree').innerHTML =
+    roots.map(r => renderNode(r)).join('') || '<div class="empty">No agents yet</div>';
+}
+
+function renderDecisions(decisions) {
+  const body = document.querySelector('#decisionTable tbody');
+  const rows = [...decisions].reverse().slice(0, 200);
+  body.innerHTML = rows.map(d => `
+    <tr>
+      <td>${new Date(d.ts * 1000).toLocaleString()}</td>
+      <td>${d.agent_id.slice(0, 8)}</td>
+      <td>${d.action} ${d.target || ''}</td>
+      <td>$${d.amount.toFixed(2)}</td>
+      <td class="status-${d.status}">${d.status}</td>
+      <td>${d.reasoning}</td>
+    </tr>
+  `).join('') || '<tr><td colspan="6" class="empty">No decisions match</td></tr>';
+}
+
+function filterDecisions() {
+  const search = document.getElementById('searchBox').value.toLowerCase();
+  const status = document.getElementById('statusFilter').value;
+  const filtered = ALL_DECISIONS.filter(d => {
+    const matchesSearch = !search || (d.reasoning || '').toLowerCase().includes(search) ||
+                           (d.action || '').toLowerCase().includes(search);
+    const matchesStatus = !status || d.status === status;
+    return matchesSearch && matchesStatus;
+  });
+  renderDecisions(filtered);
+}
+
+load();
+</script>
+</body>
+</html>

@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+*.db
+arise_notifications.log
+arise_data.json
+.env
