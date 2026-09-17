@@ -109,6 +109,8 @@ Every intermediate result stays `requires_human=True` — a patch that applies, 
 
 **Postmortem (`postmortem.py`):** auto-generates a report for any dead agent — reconstructs the exact ledger entry where balance crossed zero, reviews the decisions immediately preceding death, and distinguishes three cases: (1) guardrails correctly rejected risky actions but the agent ran out of safe options (a strategy/tool diversity gap, not a guardrail bug), (2) the agent escalated but nothing suggests the notification was acted on in time, or (3) neither — pointing at either an unanticipated single loss or a market-level platform failure no code-level guardrail could have caught. Tested against two distinct real scenarios with correctly differentiated analysis in each.
 
+**Diversified strategy per child:** each agent carries a `strategy_tag`; on split, the child is deliberately assigned a *different* tag than its parent (rotating across available earn-tools), and the decision prompt nudges toward it. Verified end-to-end: root assigned `content_gig`, a forced-split child assigned `algora_bounty`, and the dry-run decision engine actually chose the assigned tool for each — not just a documented intention.
+
 ## 9. What Makes the Resume Story Strong
 
 - Real financial stakes, not a simulation.

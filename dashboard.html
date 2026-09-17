@@ -217,7 +217,7 @@ function renderLineageTree(data) {
     const bal = (balanceByAgent[agent.agent_id] ?? 0).toFixed(2);
     const d = (days[agent.agent_id] ?? 0).toFixed(1);
     const children = byParent[agent.agent_id] || [];
-    const label = `<span class="tree-label ${agent.status}">${agent.agent_id.slice(0,8)} — $${bal} — ${d}d — ${agent.status}</span>`;
+    const label = `<span class="tree-label ${agent.status}">${agent.agent_id.slice(0,8)} — $${bal} — ${d}d — ${agent.status}${agent.strategy_tag ? ' — strategy: ' + agent.strategy_tag : ''}</span>`;
     const childHtml = children.map(c => `<div class="tree-node">${renderNode(c)}</div>`).join('');
     return label + childHtml;
   }

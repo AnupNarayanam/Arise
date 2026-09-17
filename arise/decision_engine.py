@@ -33,30 +33,41 @@ Rules:
 """
 
 
-def _dry_run_decision(balance: float, allowed_tools: list[str]) -> dict:
-    """Scripted stand-in used only when no API key is configured. Always
-    tries a modest 'earn' via the first allowed tool, so Phase 0 testing can
-    exercise guardrails, ledger, and replication without hitting the API."""
-    if "content_gig" in allowed_tools:
+def _dry_run_decision(balance: float, allowed_tools: list[str], strategy_tag: str = "") -> dict:
+    """Scripted stand-in used only when no API key is configured. Prefers the
+    agent's strategy_tag if it's a valid allowed tool (so diversified-child
+    testing works without an API key); otherwise falls back to content_gig.
+    Always tries a modest 'earn', to exercise guardrails/ledger/replication."""
+    target = strategy_tag if strategy_tag in allowed_tools else ("content_gig" if "content_gig" in allowed_tools else None)
+    if target:
         amount = min(15.0, round(balance * 0.05, 2))
         return {
             "action": "earn",
-            "target": "content_gig",
+            "target": target,
             "amount": amount,
-            "reasoning": "dry-run stand-in: no API key configured, trying a modest earn action",
+            "reasoning": f"dry-run stand-in: no API key configured, trying a modest earn via '{target}'"
+                         f"{' (assigned strategy)' if target == strategy_tag else ''}",
         }
     return {"action": "wait", "target": "", "amount": 0, "reasoning": "no usable tool for dry-run"}
 
 
-def decide(balance: float, allowed_tools: list[str], recent_decisions: list[dict]) -> dict:
+def decide(balance: float, allowed_tools: list[str], recent_decisions: list[dict],
+           strategy_tag: str = "") -> dict:
     history_lines = [
         f"- {d['action']} {d['target']} ${d['amount']}: {d['reasoning']}"
         for d in recent_decisions
     ]
     history_block = "\n".join(history_lines) if history_lines else "(no prior decisions)"
 
+    strategy_line = ""
+    if strategy_tag and strategy_tag in allowed_tools:
+        strategy_line = (f"\nThis agent's assigned strategy preference is '{strategy_tag}' — prefer it over "
+                          f"other tools when the choice is otherwise close. This exists so a lineage of agents "
+                          f"doesn't put all its income through one tool/platform, which would make the whole "
+                          f"lineage fail together if that one platform stops paying.")
+
     user_prompt = f"""Current balance: ${balance}
-Allowed tools: {', '.join(allowed_tools)}
+Allowed tools: {', '.join(allowed_tools)}{strategy_line}
 Recent decisions:
 {history_block}
 
@@ -66,7 +77,7 @@ Decide this cycle's action."""
         # No API key configured — use a simple scripted stand-in so the loop,
         # guardrails, and replication logic can still be exercised end-to-end
         # in a dry-run/demo environment. Real reasoning only happens with a key.
-        return _dry_run_decision(balance, allowed_tools)
+        return _dry_run_decision(balance, allowed_tools, strategy_tag)
 
     import anthropic
 

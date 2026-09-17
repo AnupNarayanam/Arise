@@ -59,10 +59,12 @@ class Orchestrator:
         each_side = (balance - reserve) / 2
 
         child_id = str(uuid.uuid4())
+        child_strategy = self._diversified_strategy_for(parent.agent_id)
 
         # Move funds: parent keeps reserve + its share, child gets its share.
         self.ledger.record_entry(parent.agent_id, "expense", each_side, "split", child_id, None)
-        self.ledger.register_agent(child_id, parent_id=parent.agent_id, balance_at_last_split=each_side)
+        self.ledger.register_agent(child_id, parent_id=parent.agent_id, balance_at_last_split=each_side,
+                                    strategy_tag=child_strategy)
         self.ledger.record_entry(child_id, "income", each_side, "split", parent.agent_id, None)
 
         self.ledger.update_split_point(parent.agent_id, parent.balance())
@@ -70,6 +72,19 @@ class Orchestrator:
         child = Agent(self.ledger, child_id, root_agent_id=self.root_agent_id)
         self.agents[child_id] = child
         return child
+
+    def _diversified_strategy_for(self, parent_id: str) -> str:
+        """Picks a strategy_tag for a new child that differs from its
+        parent's, so the lineage isn't betting everything on one income
+        tool/platform. Rotates through allowed earn-tools; if there's only
+        one, there's nothing to diversify into and the child inherits it."""
+        earn_tools = [t for t in CONFIG.allowed_tools if t != "cost_cutting"]
+        if len(earn_tools) <= 1:
+            return earn_tools[0] if earn_tools else ""
+        parent_row = self.ledger.get_agent(parent_id)
+        parent_tag = parent_row.get("strategy_tag", "") if parent_row else ""
+        others = [t for t in earn_tools if t != parent_tag]
+        return others[0] if others else earn_tools[0]
 
     def status_report(self) -> dict:
         agents = self.ledger.all_agents()

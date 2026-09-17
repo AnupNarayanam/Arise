@@ -24,7 +24,10 @@ class Agent:
     @classmethod
     def spawn_root(cls, ledger: Ledger) -> "Agent":
         agent_id = str(uuid.uuid4())
-        ledger.register_agent(agent_id, parent_id=None, balance_at_last_split=CONFIG.seed_balance)
+        earn_tools = [t for t in CONFIG.allowed_tools if t != "cost_cutting"]
+        initial_strategy = earn_tools[0] if earn_tools else ""
+        ledger.register_agent(agent_id, parent_id=None, balance_at_last_split=CONFIG.seed_balance,
+                               strategy_tag=initial_strategy)
         ledger.record_entry(agent_id, "income", CONFIG.seed_balance, "seed", "founder", None)
         return cls(ledger, agent_id, root_agent_id=agent_id)
 
@@ -51,7 +54,8 @@ class Agent:
 
         # SENSE + THINK
         recent = self.ledger.recent_decisions(self.agent_id, limit=5)
-        decision = decide(balance, list(CONFIG.allowed_tools), recent)
+        agent_row = self.ledger.get_agent(self.agent_id)
+        decision = decide(balance, list(CONFIG.allowed_tools), recent, strategy_tag=agent_row.get("strategy_tag", ""))
 
         action = decision.get("action", "wait")
         target = decision.get("target", "") or ""

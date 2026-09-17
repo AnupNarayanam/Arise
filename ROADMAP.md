@@ -61,8 +61,9 @@ The first version that's genuinely "done" as a product, not a prototype.
 - Full lineage running unattended for extended stretches, human only pinged on escalate/approval
 - **Dashboard upgraded to public-demo quality (done):** real lineage tree (not a flat table), days-survived counter per agent, income/expense breakdown by category, searchable + status-filterable reasoning trace. All verified against real exported data including a mixed alive/dead lineage.
 - **Postmortem tooling (done):** `postmortem.py` auto-generates a report on any dead agent — reconstructs exactly when balance crossed zero, reviews the decisions immediately preceding death, and distinguishes "guardrail worked but ran out of safe options" from "guardrail didn't anticipate this" from "market-level failure no code could catch." Tested against two real scenarios (rejected-decisions-before-death, and a sudden external loss) with correct, distinct analysis for each.
-- Diversified strategy per child (replication rule's "don't clone identically" guardrail actually implemented, not just documented) — still open
+- Diversified strategy per child (BUILT) — each agent gets a `strategy_tag`, and on split the child is deliberately assigned a *different* one than its parent (rotates across available earn-tools). The decision prompt nudges toward the assigned tool without hard-forcing it. Tested end-to-end: root got `content_gig`, forced-split child got `algora_bounty`, and the dry-run decision engine actually honored the child's tag in its choice — not just documented as intent.
 - README + architecture doc are portfolio-ready as-is
+**v1.0 status: complete.**
 
 ## v2.0 — Elite Tier
 Where this stops being "a cool project" and becomes something with real depth to discuss in an interview.

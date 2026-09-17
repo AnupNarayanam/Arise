@@ -6,7 +6,7 @@ enough, it splits into an independent child agent — a lineage of autonomous
 economic agents, each with its own ledger and its own decisions.
 
 See `ROADMAP.md` for the full version plan and `arise-spec.md` for the
-architecture doc. **Current version: v0.4 (Algora claim + payout tracking) — built and tested.**
+architecture doc. **Current version: v1.0 complete — dashboard/observability + diversified strategy, built and tested.**
 
 ## Architecture
 
@@ -103,10 +103,15 @@ run — that's the guardrail working correctly, not a bug. In production,
 cycles are spaced hours apart (`cycle_hours` in `config.py`), so the rolling
 window advances naturally.
 
+Also: `agents.strategy_tag` is a new column added in v1.0 — a pre-existing
+`arise.db` from an earlier version won't have it (SQLite's `CREATE TABLE IF
+NOT EXISTS` doesn't migrate existing tables). Delete the old `.db` file for
+a clean run, or add the column manually if you need to keep old data.
+
 ## What's NOT here yet
 
 - Automated bounty completion — writing code + opening a PR (v0.3.1)
 - Approve/reject via Telegram reply, not just alert (v0.2 stretch / v0.3)
-- Diversified strategy per child, adaptive floor, Jarvis integration (v1.0–v2.0)
+- Second, uncorrelated income tool; real cost-cutting; adaptive floor; Jarvis integration (v0.4 completeness / v2.0)
 
 Full plan: `ROADMAP.md`. Architecture rationale: `arise-spec.md`.

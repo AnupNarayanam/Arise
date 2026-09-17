@@ -16,7 +16,8 @@ CREATE TABLE IF NOT EXISTS agents (
     parent_id TEXT,
     created_at REAL,
     balance_at_last_split REAL,
-    status TEXT DEFAULT 'alive'   -- alive | dead | split_parent
+    status TEXT DEFAULT 'alive',   -- alive | dead | split_parent
+    strategy_tag TEXT DEFAULT ''   -- preferred tool, used to diversify children from their parent
 );
 
 CREATE TABLE IF NOT EXISTS ledger_entries (
@@ -83,12 +84,13 @@ class Ledger:
 
     # ---- agents / lineage ----
 
-    def register_agent(self, agent_id: str, parent_id: str | None, balance_at_last_split: float):
+    def register_agent(self, agent_id: str, parent_id: str | None, balance_at_last_split: float,
+                        strategy_tag: str = ""):
         with self._conn() as conn:
             conn.execute(
-                "INSERT INTO agents (agent_id, parent_id, created_at, balance_at_last_split, status) "
-                "VALUES (?, ?, ?, ?, 'alive')",
-                (agent_id, parent_id, time.time(), balance_at_last_split),
+                "INSERT INTO agents (agent_id, parent_id, created_at, balance_at_last_split, status, strategy_tag) "
+                "VALUES (?, ?, ?, ?, 'alive', ?)",
+                (agent_id, parent_id, time.time(), balance_at_last_split, strategy_tag),
             )
 
     def set_agent_status(self, agent_id: str, status: str):
