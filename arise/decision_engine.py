@@ -47,8 +47,9 @@ def _dry_run_decision(balance: float, allowed_tools: list[str], strategy_tag: st
             "amount": amount,
             "reasoning": f"dry-run stand-in: no API key configured, trying a modest earn via '{target}'"
                          f"{' (assigned strategy)' if target == strategy_tag else ''}",
+            "_api_cost": 0.0,
         }
-    return {"action": "wait", "target": "", "amount": 0, "reasoning": "no usable tool for dry-run"}
+    return {"action": "wait", "target": "", "amount": 0, "reasoning": "no usable tool for dry-run", "_api_cost": 0.0}
 
 
 def decide(balance: float, allowed_tools: list[str], recent_decisions: list[dict],
@@ -99,4 +100,14 @@ Decide this cycle's action."""
             "amount": 0,
             "reasoning": f"model output was not valid JSON: {text[:200]}",
         }
+
+    # Real API cost for this cycle, from actual token usage — not a config
+    # guess. Private keys (leading underscore) so agent.py can record it as
+    # a real ledger expense without it leaking into the decision's own
+    # reasoning/target/amount fields.
+    from . import llm_cost
+    decision["_api_cost"] = llm_cost.estimate_cost(
+        response.usage.input_tokens, response.usage.output_tokens, CONFIG.anthropic_model,
+    )
+    decision["_model_used"] = CONFIG.anthropic_model
     return decision

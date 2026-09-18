@@ -23,18 +23,16 @@ def content_gig(amount: float) -> dict:
     return {"income": 0.0, "expense": cost, "note": "gig did not sell"}
 
 
-def cost_cutting(amount: float) -> dict:
-    """Simulated: cancel/downgrade a recurring cost. `amount` is the size of
-    the recurring cost being evaluated for cancellation."""
-    savings_chance = 0.9
-    if random.random() < savings_chance:
-        return {"income": 0.0, "expense": 0.0, "savings": amount, "note": "cost cancelled"}
-    return {"income": 0.0, "expense": 0.0, "savings": 0.0, "note": "cost was non-cancellable"}
+# NOTE: cost_cutting is no longer simulated here — real_cost_cutting.py
+# analyzes actual recorded LLM API spend and applies a real model switch
+# when justified. agent.py's _execute() special-cases the "cost_cutting"
+# target and calls it directly (it needs ledger/agent_id access that this
+# tool-registry's `amount`-only signature doesn't carry). It stays in
+# TOOLS/allowed_tools as a name for the whitelist check, not a callable here.
 
 
 TOOLS = {
     "content_gig": content_gig,
-    "cost_cutting": cost_cutting,
     "algora_bounty": real_tools.algora_bounty,
 }
 

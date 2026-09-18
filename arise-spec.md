@@ -111,7 +111,16 @@ Every intermediate result stays `requires_human=True` — a patch that applies, 
 
 **Diversified strategy per child:** each agent carries a `strategy_tag`; on split, the child is deliberately assigned a *different* tag than its parent (rotating across available earn-tools), and the decision prompt nudges toward it. Verified end-to-end: root assigned `content_gig`, a forced-split child assigned `algora_bounty`, and the dry-run decision engine actually chose the assigned tool for each — not just a documented intention.
 
-## 9. What Makes the Resume Story Strong
+## 9. Real Cost-Cutting (built)
+
+The old "cost_cutting" tool was a simulated dice roll. Now:
+- `llm_cost.py` computes real $ cost from actual token usage on every live decision-engine API call, using a documented (approximate, verify-before-relying-on) per-model pricing table.
+- `agent.py` records that cost as a genuine `llm_api` ledger expense every cycle — this closes a real gap where `fixed_cost_per_cycle` in the guardrail config was a guess, never actually deducted from balance.
+- `real_cost_cutting.py` analyzes an agent's own recent real LLM spend; only when the average genuinely exceeds a meaningful threshold does it switch `CONFIG.anthropic_model` to a cheaper option and report the estimated saving — cutting a cost that isn't actually a problem is correctly a no-op, not a forced "win."
+- Tested through all four real states: no cost history yet, low/acceptable cost, genuinely high cost (triggers a real model switch with correct savings estimate), and already-on-cheapest (correctly refuses to claim a cut that doesn't exist).
+- Scope note: the model setting is currently global to the whole lineage, so one agent's cost-driven switch affects every agent's next cycle — a reasonable v1.1 follow-up (per-agent model config) rather than something hidden here.
+
+## 10. What Makes the Resume Story Strong
 
 - Real financial stakes, not a simulation.
 - A full audit trail from balance change back to the LLM reasoning that caused it.
@@ -119,7 +128,7 @@ Every intermediate result stays `requires_human=True` — a patch that applies, 
 - A number to point to: days survived, net income generated, decisions made autonomously vs. escalated.
 - An honest failure mode is fine, and so is an honest "not automated yet" — v0.3's bounty tool reporting rather than faking completion is itself a good engineering-integrity story.
 
-## 10. Open Questions Going Into v0.3.1
+## 11. Open Questions Going Into v0.3.1
 
 - What does automated bounty completion actually look like — a single Claude call writing a diff, or a small agentic loop (read issue → write fix → run tests → open PR)?
 - What's the quality gate before a PR is submitted, so a bad automated PR doesn't burn trust with the platform/maintainers?

@@ -57,6 +57,14 @@ class Agent:
         agent_row = self.ledger.get_agent(self.agent_id)
         decision = decide(balance, list(CONFIG.allowed_tools), recent, strategy_tag=agent_row.get("strategy_tag", ""))
 
+        # Record the REAL LLM API cost for this cycle (0.0 in dry-run) as an
+        # actual ledger expense — this used to be an unenforced config guess.
+        api_cost = decision.pop("_api_cost", 0.0)
+        decision.pop("_model_used", None)
+        if api_cost > 0:
+            self.ledger.record_entry(self.agent_id, "expense", api_cost, "llm_api", "anthropic_api", None)
+            balance = self.balance()  # refresh — the guardrail check below must see the real post-cost balance
+
         action = decision.get("action", "wait")
         target = decision.get("target", "") or ""
         amount = float(decision.get("amount", 0) or 0)
@@ -160,8 +168,14 @@ class Agent:
             if result.get("income"):
                 self.ledger.record_entry(self.agent_id, "income", result["income"], target, target, decision_id)
         elif action == "spend":
-            result = tools.run_tool(target or "cost_cutting", amount)
-            # cost-cutting doesn't spend the ledger amount itself — it removes a
-            # future recurring cost, modeled here as an immediate small fee.
-            if result.get("savings", 0) == 0:
-                self.ledger.record_entry(self.agent_id, "expense", amount * 0.1, target, target, decision_id)
+            resolved_target = target or "cost_cutting"
+            if resolved_target == "cost_cutting":
+                # Real analysis — costs nothing to run (just reads the
+                # ledger), unlike the old simulated version's arbitrary fee.
+                from . import real_cost_cutting
+                real_cost_cutting.analyze_and_cut(self.ledger, self.agent_id)
+            else:
+                result = tools.run_tool(resolved_target, amount)
+                if result.get("savings", 0) == 0:
+                    self.ledger.record_entry(self.agent_id, "expense", amount * 0.1,
+                                              resolved_target, resolved_target, decision_id)

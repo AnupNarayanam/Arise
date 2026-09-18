@@ -6,7 +6,7 @@ enough, it splits into an independent child agent — a lineage of autonomous
 economic agents, each with its own ledger and its own decisions.
 
 See `ROADMAP.md` for the full version plan and `arise-spec.md` for the
-architecture doc. **Current version: v1.0 complete — dashboard/observability + diversified strategy, built and tested.**
+architecture doc. **Current version: v1.0 complete + real cost-cutting tool — built and tested.**
 
 ## Architecture
 
@@ -37,6 +37,11 @@ SENSE (balance, history) -> THINK (LLM decision) -> ACT (tool call)
   income until a real payout is confirmed).
 - `real_tools.py` — v0.4: real `claim_bounty()` and `check_payout()` against
   Algora (dry-run-safe by default), plus the read-only wallet balance check.
+- `llm_cost.py` — computes real $ cost from actual token usage on every live
+  decision-engine call, using a documented per-model pricing table.
+- `real_cost_cutting.py` — analyzes an agent's own recent real LLM spend and
+  switches to a cheaper model when it's genuinely eating into survival
+  margin. Replaces the old simulated dice-roll cost-cutting tool entirely.
 - `real_tools.py` — v0.3 income adapter: Algora bounty listing (dry-run by
   default, `ALGORA_LIVE_MODE=true` to go live), wired to `completion.py` for
   real bounties, plus a read-only wallet balance check (never touches a
@@ -112,6 +117,7 @@ a clean run, or add the column manually if you need to keep old data.
 
 - Automated bounty completion — writing code + opening a PR (v0.3.1)
 - Approve/reject via Telegram reply, not just alert (v0.2 stretch / v0.3)
-- Second, uncorrelated income tool; real cost-cutting; adaptive floor; Jarvis integration (v0.4 completeness / v2.0)
+- Second, uncorrelated income tool; adaptive floor; Jarvis integration (v0.4 completeness / v2.0)
+- Per-agent model config — the cost-cutting model switch is currently global to the whole lineage
 
 Full plan: `ROADMAP.md`. Architecture rationale: `arise-spec.md`.
